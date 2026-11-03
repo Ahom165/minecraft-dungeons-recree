@@ -74,12 +74,18 @@ fn fs_main(i: VOut) -> @location(0) vec4<f32> {
     for (var li: i32 = 0; li < 16; li = li + 1) {
         if (li >= i32(u.info.y)) { break; }
         let lp = u.lights[li];
-        let d = distance(i.wpos, lp.xyz);
+        let to_l = lp.xyz - i.wpos;
+        let d = length(to_l);
+        let dir_l = select(to_l / max(d, 0.001), vec3<f32>(0.0, 1.0, 0.0), d < 0.001);
         let att = clamp(1.0 - d / lp.w, 0.0, 1.0);
-        let ndl_l = max(dot(n, normalize(lp.xyz - i.wpos)), 0.0) * 0.55 + 0.45;
+        let ndl_l = max(dot(n, dir_l), 0.0) * 0.55 + 0.45;
         point_sum = point_sum + u.light_colors[li].rgb * u.light_colors[li].w * att * att * att * ndl_l;
     }
     light = light + min(point_sum, vec3<f32>(1.1, 1.1, 1.1));
+    // garde-fou NaN (NaN != NaN) : tout éclairage invalide devient neutre
+    if (light.x != light.x || light.y != light.y || light.z != light.z) {
+        light = vec3<f32>(0.5, 0.5, 0.5);
+    }
     var lit = col.rgb * light;
     lit = lit / (lit + vec3<f32>(1.0)); // tone mapping Reinhard (anti-surexposition)
     let fd2 = dist * u.fog.w;
