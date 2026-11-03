@@ -87,6 +87,10 @@ fn fs_main(i: VOut) -> @location(0) vec4<f32> {
         light = vec3<f32>(0.5, 0.5, 0.5);
     }
     var lit = col.rgb * light;
+    // DEBUG QA (MCD_DEBUG_LIGHT=1) : affiche l'éclairage brut sans texture ni fog.
+    if (u.info.z > 0.5) {
+        return vec4<f32>(light, 1.0);
+    }
     lit = lit / (lit + vec3<f32>(1.0)); // tone mapping Reinhard (anti-surexposition)
     let fd2 = dist * u.fog.w;
     let fog_k = 1.0 - exp(-fd2 * fd2);
@@ -194,6 +198,8 @@ pub struct Renderer {
     pub surface: wgpu::Surface<'static>,
     pub config: wgpu::SurfaceConfiguration,
     pub size: (u32, u32),
+    /// Vrai si le format de surface est BGRA : les captures doivent alors échanger R et B.
+    bgra_swap: bool,
     depth_view: wgpu::TextureView,
     world_pipeline: wgpu::RenderPipeline,
     fx_alpha_pipeline: wgpu::RenderPipeline,
@@ -257,6 +263,7 @@ impl Renderer {
             .copied()
             .find(|f| f.is_srgb())
             .unwrap_or(caps.formats[0]);
+        let bgra_swap = matches!(format, wgpu::TextureFormat::Bgra8UnormSrgb | wgpu::TextureFormat::Bgra8Unorm);
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
             format,
@@ -612,6 +619,7 @@ impl Renderer {
             surface,
             config,
             size: size_out,
+            bgra_swap,
             depth_view,
             world_pipeline,
             fx_alpha_pipeline,
@@ -754,9 +762,13 @@ impl Renderer {
         (tex, Tex { view })
     }
 
-    /// Debug : lit le mip0 de la texture monde et le sauvegarde en PNG.
+    /// Debug : lit le mip `level` (ou le 0 par défaut) de la texture monde et le sauvegarde en PNG.
     pub fn dump_world_texture(&self, path: &str) {
-        let w = crate::atlas::ATLAS_SIZE as u32;
+        let level = std::env::var("MCD_DUMP_MIP")
+            .ok()
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0);
+        let w = (crate::atlas::ATLAS_SIZE as u32) >> level;
         let bytes_per_row = w * 4;
         let buf_size = (bytes_per_row * w) as u64;
         let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
@@ -769,7 +781,7 @@ impl Renderer {
         enc.copy_texture_to_buffer(
             wgpu::ImageCopyTexture {
                 texture: &self.world_texture,
-                mip_level: 0,
+                mip_level: level,
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,
             },
@@ -792,13 +804,10 @@ impl Renderer {
         self.device.poll(wgpu::Maintain::Wait);
         rx.recv().ok().unwrap().unwrap();
         let data = slice.get_mapped_range();
-        let mut rgba = data.to_vec();
+        let rgba = data.to_vec();
         drop(data);
         buffer.unmap();
-        // BGRA -> RGBA puis suppression de l'alpha pour le PNG
-        for px in rgba.as_chunks_mut::<4>().0 {
-            px.swap(0, 2);
-        }
+        // La texture monde est uploadée en RGBA : aucune permutation à faire pour le PNG.
         let img = image::RgbaImage::from_raw(w, w, rgba).unwrap();
         img.save(path).ok();
     }
@@ -857,7 +866,13 @@ impl Renderer {
         ];
         let sun = [-0.4f32, -0.85, -0.3, 1.0];
         let sun_color = [srgb_to_linear(0.38), srgb_to_linear(0.44), srgb_to_linear(0.5), 1.0];
-        let info = [fd.time, fd.lights.len().min(16) as f32, 0.0, 0.0];
+        let no_lights = std::env::var("MCD_NO_LIGHTS").is_ok();
+        let info = [
+            fd.time,
+            if no_lights { 0.0 } else { fd.lights.len().min(16) as f32 },
+            if std::env::var("MCD_DEBUG_LIGHT").is_ok() { 1.0 } else { 0.0 },
+            0.0,
+        ];
         let mut off = 64usize;
         for arr in [&eye, &fog, &sun, &sun_color, &info] {
             ub[off..off + 16].copy_from_slice(bytemuck::bytes_of(arr));
@@ -1042,8 +1057,12 @@ impl Renderer {
             let start = (y * bytes_per_row) as usize;
             let row = &data[start..start + (w * 4) as usize];
             for px in row.as_chunks::<4>().0 {
-                // la surface est BGRA : on remet en RGBA
-                img.extend_from_slice(&[px[2], px[1], px[0], px[3]]);
+                // Surface BGRA (Vulkan) : on remet en RGBA ; RGBA (GL) : copie directe.
+                if self.bgra_swap {
+                    img.extend_from_slice(&[px[2], px[1], px[0], px[3]]);
+                } else {
+                    img.extend_from_slice(px);
+                }
             }
         }
         drop(data);

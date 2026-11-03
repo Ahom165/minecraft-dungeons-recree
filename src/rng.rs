@@ -41,7 +41,10 @@ impl Rng {
             let mut n = (cx.wrapping_mul(374761393)).wrapping_add(cy.wrapping_mul(668265263));
             n ^= n >> 13;
             n = n.wrapping_mul(1274126177);
-            ((n ^ (n >> 16)) as f32).abs() / (i32::MAX as f32)
+            // Réduction sur 32 bits AVANT conversion f32 : un i64 -> f32 donnerait des
+            // valeurs ~1e18 et un tint GPU explosé (sol blanc en jeu).
+            let t = (n ^ (n >> 16)) as u32;
+            t as f32 / (u32::MAX as f32)
         };
         let a = h(xi, yi);
         let b = h(xi + 1, yi);

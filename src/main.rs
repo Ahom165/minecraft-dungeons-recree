@@ -56,6 +56,20 @@ fn main() {
     if !world_atlas.used_names.is_empty() {
         eprintln!("Textures utilisateur chargées : {:?}", world_atlas.used_names);
     }
+    // QA : dump CPU des mips de l'atlas (MCD_DUMP_CPU=1), pour comparer au GPU.
+    if std::env::var("MCD_DUMP_CPU").is_ok() {
+        for mip in 0..=atlas::MIP_COUNT {
+            let side = atlas::ATLAS_SIZE >> mip;
+            let off = atlas::mip_offset(mip);
+            let img = image::RgbaImage::from_raw(
+                side as u32,
+                side as u32,
+                world_atlas.pixels[off..off + side * side * 4].to_vec(),
+            )
+            .expect("atlas CPU invalide");
+            img.save(format!("/tmp/cpu_atlas_mip{mip}.png")).ok();
+        }
+    }
     let font_bytes = include_bytes!("../assets/fonts/DejaVuSans-Bold.ttf");
     let font = fontdue::Font::from_bytes(font_bytes.as_slice(), fontdue::FontSettings::default())
         .expect("police embarquée invalide");
@@ -138,7 +152,9 @@ fn draw_frame(
     game.build_dynamic(&mut dyn_verts);
     let mut fx_alpha = Vec::new();
     let mut fx_add = Vec::new();
-    game.particles.build_batches(&mut fx_alpha, &mut fx_add);
+    if std::env::var("MCD_NO_FX").is_err() {
+        game.particles.build_batches(&mut fx_alpha, &mut fx_add);
+    }
     let mut ui_verts = Vec::with_capacity(20_000);
     let (w, h) = renderer.size;
     hud::draw(game, ui_atlas, font, w as f32, h as f32, &mut ui_verts);

@@ -141,15 +141,13 @@ pub fn paint_slot(name: &str, px: &mut [u8], rng: &mut Rng) {
 
     match name {
         "grass_top" => {
-            for yy in 0..TILE {
-                for xx in 0..TILE {
-                    let t = xx as f32 / 127.0;
-                    let r = (255.0 * (1.0 - t)) as u8;
-                    let b = (255.0 * t) as u8;
-                    put(xx, yy, [r, 0, b, 255], px);
-                }
-            }
-            grain(rng, 0, px);
+            // Herbe de Creeper Woods : vert vif, touffes claires et sombres (style MCD).
+            fill([67, 106, 40], px);
+            blotches(rng, [88, 132, 52], 26, 6, px);
+            blotches(rng, [52, 84, 30], 20, 7, px);
+            speckles(rng, [110, 156, 64], 90, 1, px);
+            speckles(rng, [42, 68, 24], 70, 1, px);
+            grain(rng, 7, px);
         }
         "grass_side" => {
             fill([122, 91, 55], px);

@@ -122,25 +122,37 @@ pub fn push_box(
         ),
     ];
     // UV : v=0 en haut de la texture, v=1 en bas.
+    // Topologie TriangleList : 6 sommets par face (2 triangles), sans index buffer.
     let uvs: [[f32; 2]; 4] = [[0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0]];
     for (corners, nrm, slot) in faces {
         let rect = slot_rect(slot);
         let n = mat.transform_vector3(nrm).normalize_or_zero();
-        for (c, uv) in corners.iter().zip(uvs) {
+        let mut verts = [DynVertex {
+            pos: [0.0; 3],
+            nrm: [0.0; 3],
+            uv: [0.0; 2],
+            tint: tint.to_array(),
+            uv_rect: rect,
+            param,
+        }; 4];
+        for (v, (c, uv)) in verts.iter_mut().zip(corners.iter().zip(uvs)) {
             let p = mat.transform_point3(*c);
-            out.push(DynVertex {
+            *v = DynVertex {
                 pos: [p.x, p.y, p.z],
                 nrm: [n.x, n.y, n.z],
                 uv,
                 tint: tint.to_array(),
                 uv_rect: rect,
                 param,
-            });
+            };
         }
+        // Triangles (0,1,2) et (0,2,3) — sens anti-horaire vu de l'extérieur.
+        out.extend_from_slice(&[verts[0], verts[1], verts[2], verts[0], verts[2], verts[3]]);
     }
 }
 
 /// Ajoute un quad explicite (sol, eau, ombres…). `corners` doit être CCW vu du dessus.
+/// Topologie TriangleList : 6 sommets (2 triangles), sans index buffer.
 #[allow(clippy::too_many_arguments)]
 pub fn push_quad(
     out: &mut Vec<DynVertex>,
@@ -152,14 +164,23 @@ pub fn push_quad(
 ) {
     let rect = slot_rect(slot);
     let uvs: [[f32; 2]; 4] = [[0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0]];
-    for (c, uv) in corners.iter().zip(uvs) {
-        out.push(DynVertex {
+    let mut verts = [DynVertex {
+        pos: [0.0; 3],
+        nrm: [0.0; 3],
+        uv: [0.0; 2],
+        tint: tint.to_array(),
+        uv_rect: rect,
+        param,
+    }; 4];
+    for (v, (c, uv)) in verts.iter_mut().zip(corners.iter().zip(uvs)) {
+        *v = DynVertex {
             pos: [c.x, c.y, c.z],
             nrm: [nrm.x, nrm.y, nrm.z],
             uv,
             tint: tint.to_array(),
             uv_rect: rect,
             param,
-        });
+        };
     }
+    out.extend_from_slice(&[verts[0], verts[1], verts[2], verts[0], verts[2], verts[3]]);
 }
