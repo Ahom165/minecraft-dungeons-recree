@@ -1,0 +1,18 @@
+[package]
+name = "minecraft-dungeons-recree"
+version = "0.3.0"
+edition = "2021"
+description = "Recréation fidèle du niveau Creeper Woods de Minecraft Dungeons (Rust + wgpu)"
+
+[dependencies]
+wgpu = "0.19.3"
+winit = "0.29.4"
+glam = { version = "0.25", features = ["bytemuck"] }
+bytemuck = { version = "1.14", features = ["derive"] }
+fontdue = "0.9"
+image = { version = "0.24", default-features = false, features = ["png", "jpeg"] }
+pollster = "0.3"
+
+[profile.release]
+opt-level = 3
+lto = "thin"

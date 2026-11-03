@@ -1,0 +1,52 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  linux:
+    name: Linux + Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - name: Clippy (zéro warning toléré)
+        run: cargo clippy -- -D warnings
+      - name: Build release
+        run: cargo build --release
+      - name: Upload binaire Linux
+        uses: actions/upload-artifact@v4
+        with:
+          name: minecraft-dungeons-recree-linux
+          path: target/release/minecraft-dungeons-recree
+
+  windows:
+    name: Windows (.exe)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build release
+        run: cargo build --release
+      - name: Upload exécutable Windows
+        uses: actions/upload-artifact@v4
+        with:
+          name: minecraft-dungeons-recree-windows
+          path: target/release/minecraft-dungeons-recree.exe
+
+  release:
+    name: Release (tag v*)
+    runs-on: windows-latest
+    needs: [linux, windows]
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: target/release/minecraft-dungeons-recree.exe

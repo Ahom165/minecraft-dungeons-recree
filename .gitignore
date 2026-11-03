@@ -1,2 +1,11 @@
-skills/
+/target
+/.cargo
+/.rustup
+/scripts
+/download
+/upload
+/.env
+/captures
 node_modules/
+skills/
+/.vkroot
