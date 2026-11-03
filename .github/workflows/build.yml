@@ -44,6 +44,8 @@ jobs:
     runs-on: windows-latest
     needs: [linux, windows]
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
