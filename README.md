@@ -54,9 +54,14 @@ Ennemis : zombies (20 PV), squelettes (15 PV, distance), creepers (12 PV, explos
 
 ## Textures personnalisées
 
-Toutes les textures sont **procédurales** (générées au lancement). Pour les remplacer
-par les textures officielles extraites du jeu, déposer des PNG 128×128 dans
-`assets/textures/` avec le nom de la case :
+Les textures sont **procédurales, en pixel-art 16×16 façon Minecraft** (palettes
+fidèles : herbe 4 nuances agglutinées, cobble au mortier, planches à joints
+décalés, écorce striée, feuillages percés, bardeaux, lave croûtée…), agrandies
+×8 en nearest pour un rendu net bloc par bloc. L'eau et la lave sont **tuilées
+par bloc** (2×2 unités), comme le vrai jeu.
+
+Pour remplacer une case par les textures officielles extraites du jeu, déposer
+des PNG 128×128 dans `assets/textures/` avec le nom de la case :
 
 `grass_top`, `grass_side`, `dirt`, `path_dirt`, `stone`, `mossy_stone`, `cobble`,
 `gravel`, `trunk_side`, `trunk_top`, `leaves_oak`, `leaves_dark`, `bush_red`, `plank`,
