@@ -136,6 +136,45 @@ fn in_lava(x: f32, z: f32) -> bool {
     x > -104.0 && x < -56.0 && z > 244.0 && z < 272.0
 }
 
+/// Tuile un plan liquide en quads de 2 unités (répétition du texel 16×16 par
+/// bloc, comme Minecraft) au lieu d'un seul quad étiré et flou.
+fn push_liquid_grid(
+    v: &mut Vec<DynVertex>,
+    rect: [f32; 4],
+    y: f32,
+    slot: usize,
+    alpha: f32,
+    rng: &mut Rng,
+) {
+    let [x0, z0, w, d] = rect;
+    let cell = 2.0f32;
+    let mut gz = z0;
+    while gz < z0 + d {
+        let dh = cell.min(z0 + d - gz);
+        let mut gx = x0;
+        while gx < x0 + w {
+            let dw = cell.min(x0 + w - gx);
+            let n = rng.noise2(gx * 0.7, gz * 0.7);
+            let tint = Vec4::new(0.92 + n * 0.16, 0.92 + n * 0.16, 0.94 + n * 0.12, alpha);
+            push_quad(
+                v,
+                [
+                    Vec3::new(gx, y, gz + dh),
+                    Vec3::new(gx + dw, y, gz + dh),
+                    Vec3::new(gx + dw, y, gz),
+                    Vec3::new(gx, y, gz),
+                ],
+                Vec3::Y,
+                slot,
+                tint,
+                if slot == SLOT_LAVA { [1.0, 1.0, 0.0, 0.0] } else { [0.0, 1.0, 0.0, 0.0] },
+            );
+            gx += dw;
+        }
+        gz += dh;
+    }
+}
+
 impl Level {
     pub fn build() -> Level {
         let mut v: Vec<DynVertex> = Vec::with_capacity(160_000);
@@ -273,54 +312,18 @@ impl Level {
             };
         }
 
-        // ================= EAU =================
+        // ================= EAU / LAVE (tuilées par bloc, comme Minecraft) =================
         let mut water_rects = Vec::new();
         let mut lava_rects = Vec::new();
         // Lac de départ
         water_rects.push([-30.0, -26.0, 55.0, 22.0]);
-        push_quad(
-            &mut v,
-            [
-                Vec3::new(-30.0, -0.15, -4.0),
-                Vec3::new(25.0, -0.15, -4.0),
-                Vec3::new(25.0, -0.15, -26.0),
-                Vec3::new(-30.0, -0.15, -26.0),
-            ],
-            Vec3::Y,
-            SLOT_WATER,
-            Vec4::new(1.0, 1.0, 1.0, 0.82),
-            [0.0, 1.0, 0.0, 0.0],
-        );
+        push_liquid_grid(&mut v, [-30.0, -26.0, 55.0, 22.0], -0.15, SLOT_WATER, 0.82, &mut rng);
         // Rivière
         water_rects.push([-92.0, 128.0, 150.0, 13.0]);
-        push_quad(
-            &mut v,
-            [
-                Vec3::new(-92.0, -0.15, 141.0),
-                Vec3::new(58.0, -0.15, 141.0),
-                Vec3::new(58.0, -0.15, 128.0),
-                Vec3::new(-92.0, -0.15, 128.0),
-            ],
-            Vec3::Y,
-            SLOT_WATER,
-            Vec4::new(1.0, 1.0, 1.0, 0.82),
-            [0.0, 1.0, 0.0, 0.0],
-        );
+        push_liquid_grid(&mut v, [-92.0, 128.0, 150.0, 13.0], -0.15, SLOT_WATER, 0.82, &mut rng);
         // Lave (arène du boss)
         lava_rects.push([-104.0, 244.0, 48.0, 28.0]);
-        push_quad(
-            &mut v,
-            [
-                Vec3::new(-104.0, -0.02, 272.0),
-                Vec3::new(-56.0, -0.02, 272.0),
-                Vec3::new(-56.0, -0.02, 244.0),
-                Vec3::new(-104.0, -0.02, 244.0),
-            ],
-            Vec3::Y,
-            SLOT_LAVA,
-            Vec4::new(1.0, 1.0, 1.0, 1.0),
-            [1.0, 1.0, 0.0, 0.0],
-        );
+        push_liquid_grid(&mut v, [-104.0, 244.0, 48.0, 28.0], -0.02, SLOT_LAVA, 1.0, &mut rng);
         lights.push((Vec3::new(-80.0, 1.5, 258.0), 26.0, Vec3::new(1.0, 0.42, 0.12), 0.9));
 
         // Pont de pierre sur la lave (arène)

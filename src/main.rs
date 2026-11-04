@@ -164,8 +164,8 @@ fn draw_frame(
         fx_add,
         ui_verts,
         cam: game.cam,
-        fog_color: Vec3::new(0.086, 0.125, 0.098),
-        fog_density: 0.026,
+        fog_color: Vec3::new(0.075, 0.105, 0.085),
+        fog_density: 0.016,
         lights: game.collect_lights(),
         time: game.time,
     };

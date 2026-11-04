@@ -68,7 +68,7 @@ fn fs_main(i: VOut) -> @location(0) vec4<f32> {
     let n = normalize(i.nrm);
     let sun_dir = normalize(u.sun.xyz);
     let ndl = max(dot(n, sun_dir), 0.0);
-    var light = vec3<f32>(0.38, 0.41, 0.44) * u.sun_color.w;
+    var light = vec3<f32>(0.52, 0.55, 0.58) * u.sun_color.w;
     light = light + u.sun_color.rgb * (ndl * 0.55 + ndl * ndl * 0.25);
     var point_sum = vec3<f32>(0.0, 0.0, 0.0);
     for (var li: i32 = 0; li < 16; li = li + 1) {

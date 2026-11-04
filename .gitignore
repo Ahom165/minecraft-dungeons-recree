@@ -9,3 +9,7 @@
 node_modules/
 skills/
 /.vkroot
+/.secrets
+/.tooling
+*.deb
+/tool-results
